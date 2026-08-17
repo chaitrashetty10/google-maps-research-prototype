@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETA Change Insights — Prototype</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#202124}
+.phone{width:390px;max-width:100%;height:844px;margin:20px auto;background:#fff;border-radius:32px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.18);position:relative}
+.screen{height:100%;position:relative;background:#e9f0e7;display:none}.screen.active{display:block}
+.map{position:absolute;inset:0;background:
+linear-gradient(22deg,transparent 0 38%,#fff 38.4% 39.2%,transparent 39.6%),
+linear-gradient(82deg,transparent 0 58%,#fff 58.3% 59.1%,transparent 59.5%),
+linear-gradient(145deg,transparent 0 25%,#d6e2d2 25.3% 26%,transparent 26.4%),
+linear-gradient(15deg,transparent 0 72%,#d6e2d2 72.2% 73%,transparent 73.4%),
+#e5eadf}
+.road{position:absolute;width:14px;height:600px;background:#f7f7f7;border-radius:20px;transform:rotate(25deg);left:170px;top:100px;box-shadow:0 0 0 2px #d4d8d2}
+.route{position:absolute;width:7px;height:570px;background:#4285f4;border-radius:10px;transform:rotate(25deg);left:173px;top:115px}
+.route.alt{background:#8b5cf6;width:6px;left:250px;top:140px;transform:rotate(12deg);height:500px;display:none}
+.pin{position:absolute;left:48%;top:54%;width:24px;height:24px;background:#1a73e8;border:5px solid #fff;border-radius:50%;box-shadow:0 2px 6px #777}
+.topnav{position:absolute;top:18px;left:14px;right:14px;background:#168a55;color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 3px 12px #999}
+.topnav b{font-size:18px}.topnav small{display:block;margin-top:4px}
+.controls{position:absolute;right:14px;top:150px;display:flex;flex-direction:column;gap:10px}.circle{width:42px;height:42px;background:#fff;border-radius:50%;display:grid;place-items:center;box-shadow:0 2px 8px #aaa;font-size:20px}
+.bottom{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:24px 24px 0 0;padding:18px;box-shadow:0 -3px 18px rgba(0,0,0,.12)}
+.eta{display:flex;justify-content:space-between;align-items:end}.eta strong{font-size:24px;color:#d93025}.eta span{font-size:13px;color:#666}
+.alert{margin-top:14px;border:1px solid #f1b8b5;background:#fff8f7;border-radius:15px;padding:14px}
+.alert b{display:block;color:#c5221f;margin-bottom:5px}.linkbtn{border:0;background:none;color:#1769e0;font-weight:700;cursor:pointer;padding:10px 0}
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:5}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:#fff;border-radius:26px 26px 0 0;padding:22px;z-index:6;box-shadow:0 -10px 30px rgba(0,0,0,.18)}
+.handle{width:42px;height:5px;background:#ddd;border-radius:5px;margin:-10px auto 16px}
+h2{font-size:21px;margin:4px 0 16px} h3{font-size:15px;margin:16px 0 8px}
+.eta-card{display:flex;border:1px solid #e5e5e5;border-radius:15px;overflow:hidden}.eta-card div{flex:1;padding:13px}.eta-card div+div{border-left:1px solid #eee}.eta-card b{display:block;font-size:18px}.red{color:#d93025}
+.reason{padding:13px;border-radius:14px;background:#f8f9fa}.confidence{display:flex;gap:10px;align-items:center;padding:13px;border-radius:14px;background:#eef8f0}.dot{width:11px;height:11px;border-radius:50%;background:#1e8e3e}
+.action{border:1px solid #ddd;border-radius:15px;padding:15px;margin:10px 0;cursor:pointer;background:#fff}.action.primary{border:2px solid #34a853}.action h3{margin:0 0 5px;color:#176b3a}.action p{margin:4px 0;color:#666;font-size:13px}.btn{width:100%;border:0;border-radius:13px;padding:13px;font-weight:700;font-size:15px;cursor:pointer;background:#1a73e8;color:white;margin-top:10px}.btn.secondary{background:#fff;color:#1769e0;border:1px solid #dadce0}.close{position:absolute;right:18px;top:18px;border:0;background:#f1f3f4;border-radius:50%;width:32px;height:32px;cursor:pointer}
+.sharemap{height:160px;border-radius:15px;margin:12px 0;background:#e5eadf;position:relative;overflow:hidden}.sharemap .route{display:block}
+.confirm{text-align:center;padding:30px 10px}.check{width:64px;height:64px;border-radius:50%;background:#e6f4ea;color:#188038;font-size:38px;display:grid;place-items:center;margin:10px auto 18px}
+.badge{display:inline-block;background:#e6f4ea;color:#137333;padding:5px 9px;border-radius:12px;font-size:12px;font-weight:700}
+.toast{position:absolute;top:18px;left:18px;right:18px;background:#202124;color:#fff;padding:12px 14px;border-radius:13px;z-index:10;display:none}
+.small{font-size:13px;color:#666;line-height:1.45}
+</style>
+</head>
+<body>
+<div class="phone">
+
+<!-- Navigation -->
+<section id="nav" class="screen active">
+  <div class="map"><div class="road"></div><div class="route"></div><div class="pin"></div></div>
+  <div class="topnav"><b>↑ 1.2 km</b><small>Continue straight · Then turn right</small></div>
+  <div class="controls"><div class="circle">⌕</div><div class="circle">🔊</div><div class="circle">🧭</div></div>
+  <div class="bottom">
+    <div class="eta"><div><strong id="navEta">7:45 PM</strong><span> arrival</span></div><div><b>18 min</b><span> · 8.2 km</span></div></div>
+    <div class="alert"><b>🚗 ETA changed by 10 min</b><div class="small">Traffic has increased ahead.</div><button class="linkbtn" onclick="openInsights()">Why did it change? →</button></div>
+  </div>
+</section>
+
+<!-- Insights -->
+<section id="insights" class="screen">
+  <div class="map"><div class="road"></div><div class="route"></div><div class="pin"></div></div>
+  <div class="overlay"></div>
+  <div class="sheet">
+    <button class="close" onclick="show('nav')">×</button><div class="handle"></div>
+    <h2>Why did your ETA change?</h2>
+    <h3>ETA</h3>
+    <div class="eta-card"><div><span class="small">New ETA</span><b class="red">7:45 PM</b></div><div><span class="small">Previous ETA</span><b>7:35 PM</b></div><div><span class="small">Change</span><b class="red">+10 min</b></div></div>
+    <h3>Reason</h3>
+    <div class="reason"><b>🚗 Heavy traffic ahead</b><div class="small">Traffic has increased on your route, adding approximately 10 minutes.</div></div>
+    <h3>ETA Confidence</h3>
+    <div class="confidence"><span class="dot"></span><div><b>High confidence</b><div class="small">Current traffic data is reliable, so this ETA is unlikely to change significantly.</div></div></div>
+    <h3>What would you like to do?</h3>
+    <div class="action primary" onclick="selectAlt()"><h3>↪ Alternative route</h3><b>7:42 PM · Save 3 min</b><p>+1.2 km · Moderate traffic · Confidence: Medium</p><button class="btn">Take alternative route</button></div>
+    <div class="action" onclick="show('share')"><h3>📍 Running late?</h3><p>Let someone waiting for you know your updated ETA and share your live location.</p><button class="btn secondary">Share live location</button></div>
+    <button class="btn secondary" onclick="show('nav')">Stay on current route</button>
+  </div>
+</section>
+
+<!-- Share -->
+<section id="share" class="screen">
+  <div class="map"></div>
+  <div class="overlay"></div>
+  <div class="sheet">
+    <button class="close" onclick="show('insights')">×</button><div class="handle"></div>
+    <h2>Share your trip</h2>
+    <div class="sharemap"><div class="route"></div><div class="pin"></div></div>
+    <h3>Destination</h3><b>Office</b>
+    <h3>Updated ETA</h3><b class="red">7:45 PM</b>
+    <h3>Current status</h3><b>En route</b>
+    <h3>Live location</h3><span class="badge">Ready to share</span>
+    <p class="small">People with the link can see your live location and updated ETA.</p>
+    <button class="btn" onclick="show('shared')">Share</button>
+    <button class="btn secondary" onclick="show('insights')">Cancel</button>
+  </div>
+</section>
+
+<!-- Shared -->
+<section id="shared" class="screen">
+  <div class="map"><div class="road"></div><div class="route"></div><div class="pin"></div></div>
+  <div class="sheet confirm">
+    <div class="check">✓</div><h2>Live location shared</h2><p class="small">Your updated ETA and live location have been shared.</p>
+    <div class="eta-card" style="margin:20px 0"><div><span class="small">ETA</span><b class="red">7:45 PM</b></div><div><span class="small">Status</span><b>En route</b></div></div>
+    <button class="btn secondary" onclick="show('nav')">Stop sharing</button>
+    <button class="btn" onclick="show('nav')">Back to navigation</button>
+  </div>
+</section>
+
+<!-- Alternative selected -->
+<section id="alternative" class="screen">
+  <div class="map"><div class="road"></div><div class="route alt" style="display:block"></div><div class="route"></div><div class="pin"></div></div>
+  <div class="toast" id="altToast">✓ Alternative route selected · Save 3 min</div>
+  <div class="bottom">
+    <div class="eta"><div><strong style="color:#188038">7:42 PM</strong><span> arrival</span></div><div><b>15 min</b><span> · 9.4 km</span></div></div>
+    <div class="alert" style="border-color:#b7dfc1;background:#f2fbf4"><b style="color:#137333">Alternative route selected</b><div class="small">You'll arrive about 3 minutes earlier.</div></div>
+    <button class="btn" onclick="show('nav')">Continue navigation</button>
+  </div>
+</section>
+
+<!-- Route updated -->
+<section id="updated" class="screen">
+  <div class="map"><div class="road"></div><div class="route"></div><div class="pin"></div></div>
+  <div class="bottom">
+    <div class="alert" style="border-color:#c9b8ef;background:#faf8ff"><b style="color:#5b21b6">✨ Route updated</b><div class="small">A faster route is now available.</div></div>
+    <div class="eta" style="margin-top:12px"><div><strong style="color:#188038">7:42 PM</strong><span> arrival</span></div><div><b>Arrive 3 min earlier</b></div></div>
+    <p><span class="badge">High confidence</span></p>
+    <button class="btn" onclick="show('alternative')">View route</button>
+    <button class="btn secondary" onclick="openUpdatedWhy()">Why?</button>
+  </div>
+</section>
+
+<script>
+function show(id){
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+function openInsights(){show('insights')}
+function selectAlt(){
+ show('alternative');
+ setTimeout(()=>document.getElementById('altToast').style.display='block',100);
+}
+function openUpdatedWhy(){
+ show('insights');
+}
+</script>
+</div>
+</body>
+</html>
